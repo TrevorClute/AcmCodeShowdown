@@ -1,0 +1,49 @@
+main {
+  --font: ui-rounded, "Hiragino Maru Gothic ProN", Quicksand, Comfortaa, Manjari,
+    "Arial Rounded MT", "Arial Rounded MT Bold", Calibri, source-sans-pro,
+    sans-serif;
+}
+nav {
+  position: sticky;
+  background-color: black;
+  color: aliceblue;
+  top: 0;
+  left: 0;
+  display: flex;
+  gap: 5vw;
+  height: 8vh;
+  padding-left: 3vw;
+  padding-right: 3vw;
+  align-items: center;
+}
+.login {
+  font-family: var(--font);
+  font-weight: 600;
+  color: azure;
+  text-decoration: none;
+  border-radius: 2px;
+  border: solid 1px white;
+  text-align: center;
+  flex: 1;
+}
+.title {
+  font-family: var(--font);
+  font-weight: 1000;
+  text-align: center;
+  flex: 1;
+}
+.spacer {
+  flex: 1;
+}
+.card-container {
+  background-color: white;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  height: 150vh;
+  padding: 1vw;
+  gap: 1vw;
+}
+
+.coins {
+  flex: 1;
+}
