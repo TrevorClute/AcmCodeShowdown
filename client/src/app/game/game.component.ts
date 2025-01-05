@@ -1,0 +1,84 @@
+import { CommonModule } from '@angular/common';
+import {
+  AfterViewInit,
+  Component,
+  ElementRef,
+  HostListener,
+  OnDestroy,
+  OnInit,
+  ViewChild,
+} from '@angular/core';
+import { RouterLink } from '@angular/router';
+import { animationFrames, Subscription } from 'rxjs';
+import { PlayerService } from './player.service';
+import { TimeService } from './time.service';
+import { canvasWidth } from './globals';
+import { Status } from './Player';
+
+@Component({
+  selector: 'app-game',
+  standalone: true,
+  imports: [RouterLink, CommonModule],
+  templateUrl: './game.component.html',
+  styleUrl: './game.component.css',
+})
+export class GameComponent implements AfterViewInit, OnDestroy, OnInit {
+  constructor(
+    private readonly playerService: PlayerService,
+    readonly timeService: TimeService
+  ) {
+    //scale to screen
+    this.style.transform = `scale(${innerWidth / canvasWidth})`;
+  }
+  @ViewChild('canvas') canvas!: ElementRef<HTMLCanvasElement>;
+  ctx!: CanvasRenderingContext2D;
+  style: any = { transform: 'scale(1)' };
+  sub?: Subscription;
+
+  @HostListener('window:resize', ['$event'])
+  onWindowResize(event: Event) {
+    this.style.transform = `scale(${innerWidth / canvasWidth})`;
+  }
+
+  keys: [string] = ['n'];
+  @HostListener('window:keydown', ['$event'])
+  onKeydown(event: KeyboardEvent) {
+    this.execute(event.key);
+  }
+  @HostListener('window:keyup', ['$event'])
+  onKeyup(event: KeyboardEvent) {
+    this.execute('n');
+  }
+  execute(key: string) {
+    const keyMap: Record<string, Status> = {
+      d: this.playerService?.user.facing === 'right' ? 'forward' : 'backward',
+      a: this.playerService?.user.facing === 'left' ? 'forward' : 'backward',
+      s: 'hit',
+      n: 'none',
+    };
+    this.playerService.setUserStatus(keyMap[key]);
+  }
+
+  ngAfterViewInit(): void {
+    this.ctx = this.canvas.nativeElement.getContext('2d')!;
+  }
+
+  ngOnDestroy(): void {
+    this.sub?.unsubscribe();
+  }
+
+  ngOnInit(): void {
+    this.sub = animationFrames().subscribe(({ timestamp, elapsed }) => {
+      this.timeService.injectDeltaTime(timestamp, () => {
+        //main game loop
+        this.ctx.clearRect(
+          0,
+          0,
+          this.canvas.nativeElement.width,
+          this.canvas.nativeElement.height
+        );
+        this.playerService.update(this.ctx);
+      });
+    });
+  }
+}

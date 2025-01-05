@@ -16,16 +16,6 @@ nav {
   padding-right: 3vw;
   align-items: center;
 }
-.login {
-  font-family: var(--font);
-  font-weight: 600;
-  color: azure;
-  text-decoration: none;
-  border-radius: 2px;
-  border: solid 1px white;
-  text-align: center;
-  flex: 1;
-}
 .title {
   font-family: var(--font);
   font-weight: 1000;
@@ -34,14 +24,6 @@ nav {
 }
 .spacer {
   flex: 1;
-}
-.card-container {
-  background-color: white;
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  height: 150vh;
-  padding: 1vw;
-  gap: 1vw;
 }
 
 .coins {

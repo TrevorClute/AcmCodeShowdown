@@ -1,0 +1,8 @@
+<main>
+  <div class="time">
+    {{ (180 - timeService.timeElapsed).toPrecision(3) + "s" }}
+  </div>
+  <div class="container" [ngStyle]="style">
+    <canvas #canvas width="500" height="200"></canvas>
+  </div>
+</main>

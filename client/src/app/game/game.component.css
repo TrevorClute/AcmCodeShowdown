@@ -1,0 +1,23 @@
+main {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100vw;
+  height: 100vh;
+}
+.container {
+  position: absolute;
+  transform-origin: center;
+}
+canvas {
+  image-rendering: crisp-edges;
+  width: 500;
+  height: 200;
+  border-bottom: 1px solid black;
+}
+
+.time {
+  position: absolute;
+  top: 0;
+}

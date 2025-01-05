@@ -5,24 +5,12 @@ import { Injectable } from '@angular/core';
   providedIn: 'root',
 })
 export class UserService {
-  readonly url = 'localhost:3000';
-  constructor(private http: HttpClient) {
-    this.jwt = '';
+  constructor() {
     this.username = '';
     this.coins = 0;
-    let cache: string | null = localStorage.getItem('AcmContestjwt');
-    if (cache) {
-      let parsedCache = JSON.parse(cache);
-      this.jwt = parsedCache.jwt;
-    }
   }
-  jwt: any;
   username: string;
   coins: number;
-  signIn(username: string, password: string): boolean {
-    this.http.get(this.url).subscribe((response) => {
-      return false;
-    });
-    return true;
-  }
+
+  loadData(): void {}
 }
