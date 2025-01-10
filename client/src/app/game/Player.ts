@@ -19,8 +19,14 @@ export type ModelPosition = {
 };
 
 export type Facing = 'left' | 'right';
-export type Status = 'forward' | 'backward' | 'hit' | 'none';
-export type AnimationStatus = 'forward' | 'backward' | 'hit' | 'none';
+export type Status =
+  | 'forward'
+  | 'backward'
+  | 'righthit'
+  | 'lefthit'
+  | 'block'
+  | 'none';
+export type AnimationStatus = 'forward' | 'backward' | 'hit' | 'block' | 'none';
 
 const modelWidth = 120;
 const modelHeight = 170;
@@ -39,39 +45,44 @@ const hipCoords = {
 //degrees per second
 let rates = {
   rightHip: 100,
-  rightElbow: 100,
+  rightElbow: 250,
   rightKnee: 100,
-  rightShoulder: 100,
+  rightShoulder: 250,
 
   leftHip: 100,
-  leftElbow: 100,
+  leftElbow: 250,
   leftKnee: 100,
-  leftShoulder: 100,
+  leftShoulder: 250,
 };
 
 function resetRates() {
   rates = {
     rightHip: 100,
-    rightElbow: 100,
+    rightElbow: 250,
     rightKnee: 100,
-    rightShoulder: 100,
+    rightShoulder: 250,
 
     leftHip: 100,
-    leftElbow: 100,
+    leftElbow: 250,
     leftKnee: 100,
-    leftShoulder: 100,
+    leftShoulder: 250,
   };
 }
 
 const movement = {
   forward: { left: -100, right: 100 },
   backward: { left: 50, right: -50 },
-  hit: { left: 0, right: 0 },
+  righthit: { left: 0, right: 0 },
+  lefthit: { left: 0, right: 0 },
+  block: { left: 0, right: 0 },
   none: { left: 0, right: 0 },
 };
 
 export class Player {
-  constructor(player: number, private readonly timeService: TimeService) {
+  constructor(
+    player: number,
+    private readonly timeService: TimeService,
+  ) {
     this.health = 1000;
     this.stamina = 100;
     this.status = 'none';
@@ -106,7 +117,7 @@ export class Player {
 
   update(ctx: CanvasRenderingContext2D): void {
     this.x += Math.round(
-      movement[this.status][this.facing] * this.timeService.deltaTime
+      movement[this.status][this.facing] * this.timeService.deltaTime,
     );
     this.updateModel();
     ctx.drawImage(this.model, this.x, canvasHeight - modelHeight);
@@ -127,14 +138,14 @@ export class Player {
     const rightKneeCoords = findEndPoint(
       hipCoords,
       this.modelPosition.rightHip,
-      limbLength
+      limbLength,
     );
     this.drawLine(hipCoords, rightKneeCoords);
 
     const leftKneeCoords = findEndPoint(
       hipCoords,
       this.modelPosition.leftHip,
-      limbLength
+      limbLength,
     );
     this.drawLine(hipCoords, leftKneeCoords);
 
@@ -142,14 +153,14 @@ export class Player {
     const rightFootCoords = findEndPoint(
       rightKneeCoords,
       this.modelPosition.rightKnee,
-      limbLength
+      limbLength,
     );
     this.drawLine(rightKneeCoords, rightFootCoords);
 
     const leftFootCoords = findEndPoint(
       leftKneeCoords,
       this.modelPosition.leftKnee,
-      limbLength
+      limbLength,
     );
     this.drawLine(leftKneeCoords, leftFootCoords);
 
@@ -157,14 +168,14 @@ export class Player {
     const rightElbowCoords = findEndPoint(
       shoulderCoords,
       this.modelPosition.rightShoulder,
-      limbLength
+      limbLength,
     );
     this.drawLine(shoulderCoords, rightElbowCoords);
 
     const leftElbowCoords = findEndPoint(
       shoulderCoords,
       this.modelPosition.leftShoulder,
-      limbLength
+      limbLength,
     );
     this.drawLine(shoulderCoords, leftElbowCoords);
 
@@ -172,14 +183,14 @@ export class Player {
     const rightHandCoords = findEndPoint(
       rightElbowCoords,
       this.modelPosition.rightElbow,
-      limbLength
+      limbLength,
     );
     this.drawLine(rightElbowCoords, rightHandCoords);
 
     const leftHandCoords = findEndPoint(
       leftElbowCoords,
       this.modelPosition.leftElbow,
-      limbLength
+      limbLength,
     );
     this.drawLine(leftElbowCoords, leftHandCoords);
   }
@@ -211,8 +222,15 @@ export class Player {
       leftHip &&
       leftElbow &&
       leftKnee;
+    if (this.status == 'block' && allAnimationsDone) {
+      //return to none after hit
+      resetRates();
+      this.locked = false
+      return;
+    }
     if (this.animationStatus == 'hit' && allAnimationsDone) {
       //return to none after hit
+      resetRates();
       setTimeout(() => {
         this.animationStatus = 'none';
         this.modelDestination = { ...positions['none'][this.facing] };
@@ -256,7 +274,7 @@ export class Player {
       | 'leftHip'
       | 'leftElbow'
       | 'leftKnee'
-      | 'leftShoulder'
+      | 'leftShoulder',
   ): boolean {
     const rate = rates[joint] * this.timeService.deltaTime;
 
@@ -282,24 +300,44 @@ export class Player {
     return false;
   }
   setStatus(status: Status) {
+    if (!status) {
+      return;
+    }
     if (this.locked) return;
     if (this.status == status) return;
 
-    if (status === 'forward') {
+    if (status === 'block') {
+      rates.leftShoulder = 500;
+      rates.rightShoulder = 500;
+      this.locked = true;
     }
-    if (status === 'hit') {
+    if (status === 'lefthit') {
+      rates.leftShoulder = 500;
+      rates.leftElbow = 500;
+      this.locked = true;
+    }
+    if (status === 'righthit') {
+      rates.rightShoulder = 500;
+      rates.rightElbow = 500;
       this.locked = true;
     }
     this.status = status;
-    this.animationStatus = status;
+    this.animationStatus = toAnimationStatus(status);
     this.modelDestination = { ...positions[status][this.facing] };
   }
+}
+
+function toAnimationStatus(status: Status) {
+  if (status === 'lefthit' || status === 'righthit') {
+    return 'hit';
+  }
+  return status;
 }
 
 function findEndPoint(
   coordinate: Coordinate,
   angle: Degree,
-  distance: number
+  distance: number,
 ): Coordinate {
   const angleRadian = (angle * Math.PI) / 180;
   const x = coordinate.x + distance * Math.cos(angleRadian);

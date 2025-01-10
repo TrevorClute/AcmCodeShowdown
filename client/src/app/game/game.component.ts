@@ -25,7 +25,7 @@ import { Status } from './Player';
 export class GameComponent implements AfterViewInit, OnDestroy, OnInit {
   constructor(
     private readonly playerService: PlayerService,
-    readonly timeService: TimeService
+    readonly timeService: TimeService,
   ) {
     //scale to screen
     this.style.transform = `scale(${innerWidth / canvasWidth})`;
@@ -53,7 +53,9 @@ export class GameComponent implements AfterViewInit, OnDestroy, OnInit {
     const keyMap: Record<string, Status> = {
       d: this.playerService?.user.facing === 'right' ? 'forward' : 'backward',
       a: this.playerService?.user.facing === 'left' ? 'forward' : 'backward',
-      s: 'hit',
+      r: 'righthit',
+      l: 'lefthit',
+      b: 'block',
       n: 'none',
     };
     this.playerService.setUserStatus(keyMap[key]);
@@ -68,14 +70,14 @@ export class GameComponent implements AfterViewInit, OnDestroy, OnInit {
   }
 
   ngOnInit(): void {
-    this.sub = animationFrames().subscribe(({ timestamp, elapsed }) => {
+    this.sub = animationFrames().subscribe(({ timestamp }) => {
       this.timeService.injectDeltaTime(timestamp, () => {
         //main game loop
         this.ctx.clearRect(
           0,
           0,
           this.canvas.nativeElement.width,
-          this.canvas.nativeElement.height
+          this.canvas.nativeElement.height,
         );
         this.playerService.update(this.ctx);
       });

@@ -1,6 +1,6 @@
 import { Facing, ModelPosition, Status } from './Player';
 
-export const positions: Record<Status, Record<Facing, ModelPosition>> = {
+export const positions: Record<string, Record<string, ModelPosition>> = {
   none: {
     left: {
       rightShoulder: 80,
@@ -23,13 +23,35 @@ export const positions: Record<Status, Record<Facing, ModelPosition>> = {
       leftKnee: 100,
     },
   },
-  hit: {
+  lefthit: {
+    left: {
+      rightShoulder: 75,
+      rightElbow: -125,
+      rightHip: 110,
+      rightKnee: 80,
+      leftShoulder: 180,
+      leftElbow: -180,
+      leftHip: 90,
+      leftKnee: 80,
+    },
+    right: {
+      rightShoulder: 105,
+      rightElbow: -55,
+      rightHip: 70,
+      rightKnee: 100,
+      leftShoulder: 0,
+      leftElbow: 0,
+      leftHip: 90,
+      leftKnee: 100,
+    },
+  },
+  righthit: {
     left: {
       rightShoulder: 180,
       rightElbow: -180,
       rightHip: 110,
       rightKnee: 80,
-      leftShoulder: 100,
+      leftShoulder: 80,
       leftElbow: -115,
       leftHip: 90,
       leftKnee: 80,
@@ -41,6 +63,28 @@ export const positions: Record<Status, Record<Facing, ModelPosition>> = {
       rightKnee: 100,
       leftShoulder: 100,
       leftElbow: -65,
+      leftHip: 90,
+      leftKnee: 100,
+    },
+  },
+  block: {
+    left: {
+      rightShoulder: 80,
+      rightElbow: -120,
+      rightHip: 110,
+      rightKnee: 80,
+      leftShoulder: 100,
+      leftElbow: -115,
+      leftHip: 90,
+      leftKnee: 80,
+    },
+    right: {
+      rightShoulder: 65,
+      rightElbow: -85,
+      rightHip: 70,
+      rightKnee: 100,
+      leftShoulder: 50,
+      leftElbow: -85,
       leftHip: 90,
       leftKnee: 100,
     },
