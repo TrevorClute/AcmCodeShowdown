@@ -14,15 +14,16 @@ import { PlayerService } from './player.service';
 import { TimeService } from './time.service';
 import { canvasWidth } from './globals';
 import { Status } from './Player';
+import { ScannerComponent } from './scanner/scanner.component';
 
 @Component({
   selector: 'app-game',
   standalone: true,
-  imports: [RouterLink, CommonModule],
+  imports: [RouterLink, CommonModule, ScannerComponent],
   templateUrl: './game.component.html',
   styleUrl: './game.component.css',
 })
-export class GameComponent implements AfterViewInit, OnDestroy, OnInit {
+export class GameComponent implements AfterViewInit, OnDestroy, OnInit{
   constructor(
     private readonly playerService: PlayerService,
     readonly timeService: TimeService,
@@ -40,6 +41,7 @@ export class GameComponent implements AfterViewInit, OnDestroy, OnInit {
     this.style.transform = `scale(${innerWidth / canvasWidth})`;
   }
 
+  //test ---
   keys: [string] = ['n'];
   @HostListener('window:keydown', ['$event'])
   onKeydown(event: KeyboardEvent) {
@@ -58,8 +60,9 @@ export class GameComponent implements AfterViewInit, OnDestroy, OnInit {
       b: 'block',
       n: 'none',
     };
-    this.playerService.setUserStatus(keyMap[key]);
+    this.playerService.setOppStatus(keyMap[key]);
   }
+  //---
 
   ngAfterViewInit(): void {
     this.ctx = this.canvas.nativeElement.getContext('2d')!;

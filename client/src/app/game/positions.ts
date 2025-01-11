@@ -69,12 +69,12 @@ export const positions: Record<string, Record<string, ModelPosition>> = {
   },
   block: {
     left: {
-      rightShoulder: 80,
-      rightElbow: -120,
+      rightShoulder: 115,
+      rightElbow: -95,
       rightHip: 110,
       rightKnee: 80,
-      leftShoulder: 100,
-      leftElbow: -115,
+      leftShoulder: 130,
+      leftElbow: -95,
       leftHip: 90,
       leftKnee: 80,
     },

@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { Component, Injectable } from '@angular/core';
 import { TimeService } from './time.service';
 import { canvasWidth, canvasHeight } from './globals';
 import { positions } from './positions';
@@ -55,6 +55,7 @@ let rates = {
   leftShoulder: 250,
 };
 
+//the rates in which each limbs transition
 function resetRates() {
   rates = {
     rightHip: 100,
@@ -69,6 +70,7 @@ function resetRates() {
   };
 }
 
+//the rate at which the character should move given their status
 const movement = {
   forward: { left: -100, right: 100 },
   backward: { left: 50, right: -50 },
@@ -104,15 +106,15 @@ export class Player {
   }
   health: number;
   stamina: number;
-  status: Status;
-  animationStatus: AnimationStatus;
+  status: Status; // used to determine what state the character
+  animationStatus: AnimationStatus; //usually reflects status, is used primarily to return the user to the 'none' animation position
   facing: Facing;
-  locked: boolean;
-  x: number;
+  locked: boolean; // if true the user cannot change the current status
+  x: number; // the characters x position
   color: 'red' | 'blue';
   model: OffscreenCanvas;
   modelctx: OffscreenCanvasRenderingContext2D;
-  modelDestination: ModelPosition;
+  modelDestination: ModelPosition; // the characters animation destination
   modelPosition: ModelPosition;
 
   update(ctx: CanvasRenderingContext2D): void {
@@ -195,7 +197,10 @@ export class Player {
     this.drawLine(leftElbowCoords, leftHandCoords);
   }
 
-  drawLine(c1: Coordinate, c2: Coordinate) {
+  /**
+   * @description draws a line from point c1 to c2
+   * */
+  drawLine(c1: Coordinate, c2: Coordinate): void {
     this.modelctx.lineWidth = 2;
     this.modelctx.lineCap = 'round';
     this.modelctx.beginPath();
@@ -204,6 +209,14 @@ export class Player {
     this.modelctx.stroke();
   }
 
+  drawCircle(center: Coordinate): void {
+    this.modelctx.lineWidth = 2;
+    this.modelctx.lineCap = 'round';
+  }
+
+  /**
+   * @description moves the current model one step closer to the models current destination
+   * */
   stepModelAnimation() {
     const rightShoulder = this.stepDegree('rightShoulder');
     const rightHip = this.stepDegree('rightHip');
@@ -222,60 +235,52 @@ export class Player {
       leftHip &&
       leftElbow &&
       leftKnee;
-    if (this.status == 'block' && allAnimationsDone) {
+    if (this.status === 'block' && allAnimationsDone) {
       //return to none after hit
       resetRates();
-      this.locked = false
+      this.locked = false;
       return;
     }
-    if (this.animationStatus == 'hit' && allAnimationsDone) {
+
+    if (this.animationStatus === 'hit' && allAnimationsDone) {
       //return to none after hit
       resetRates();
       setTimeout(() => {
-        this.animationStatus = 'none';
-        this.modelDestination = { ...positions['none'][this.facing] };
+        this.#setAnimationStatus('none');
       }, 40);
       return;
     }
-    if (this.animationStatus == 'forward' && allAnimationsDone) {
+
+    if (this.animationStatus === 'forward' && allAnimationsDone) {
       //handle forward
-      this.animationStatus = 'none';
-      this.modelDestination = { ...positions['none'][this.facing] };
+      this.#setAnimationStatus('none');
       return;
     }
-    if (this.animationStatus == 'backward' && allAnimationsDone) {
+
+    if (this.animationStatus === 'backward' && allAnimationsDone) {
       //handle forward
-      this.animationStatus = 'none';
-      this.modelDestination = { ...positions['none'][this.facing] };
+      this.#setAnimationStatus('none');
       return;
     }
-    if (this.animationStatus == 'none' && allAnimationsDone) {
+
+    if (this.animationStatus === 'none' && allAnimationsDone) {
       //handle none
-      if (this.status == 'forward') {
-        this.animationStatus = 'forward';
-        this.modelDestination = { ...positions['forward'][this.facing] };
-        return;
-      } else if (this.status == 'backward') {
-        this.animationStatus = 'backward';
-        this.modelDestination = { ...positions['backward'][this.facing] };
+      if (this.status === 'forward') {
+        this.#setAnimationStatus('forward');
         return;
       }
+      if (this.status === 'backward') {
+        this.#setAnimationStatus('backward');
+        return;
+      }
+      //if animation status is none and status isnt forward or backwards set the current model to a still position
       this.status = 'none';
       this.locked = false;
     }
   }
 
-  stepDegree(
-    joint:
-      | 'rightHip'
-      | 'rightElbow'
-      | 'rightKnee'
-      | 'rightShoulder'
-      | 'leftHip'
-      | 'leftElbow'
-      | 'leftKnee'
-      | 'leftShoulder',
-  ): boolean {
+
+  stepDegree(joint: keyof ModelPosition): boolean {
     const rate = rates[joint] * this.timeService.deltaTime;
 
     if (this.modelPosition[joint] == this.modelDestination[joint]) {
@@ -287,8 +292,8 @@ export class Player {
         this.modelPosition[joint] = this.modelDestination[joint];
         return true;
       }
-
       this.modelPosition[joint] += rate;
+
     } else if (this.modelPosition[joint] > this.modelDestination[joint]) {
       if (this.modelPosition[joint] - rate < this.modelDestination[joint]) {
         this.modelPosition[joint] = this.modelDestination[joint];
@@ -299,12 +304,18 @@ export class Player {
     }
     return false;
   }
-  setStatus(status: Status) {
+
+  #setAnimationStatus(animationStatus: AnimationStatus) {
+    this.animationStatus = animationStatus;
+    this.modelDestination = { ...positions[animationStatus][this.facing] };
+  }
+
+  setStatus(status: Status): boolean {
     if (!status) {
-      return;
+      return false;
     }
-    if (this.locked) return;
-    if (this.status == status) return;
+    if (this.locked) return false;
+    if (this.status == status) return false;
 
     if (status === 'block') {
       rates.leftShoulder = 500;
@@ -324,8 +335,11 @@ export class Player {
     this.status = status;
     this.animationStatus = toAnimationStatus(status);
     this.modelDestination = { ...positions[status][this.facing] };
+    return true;
   }
 }
+
+//helper functions -----------
 
 function toAnimationStatus(status: Status) {
   if (status === 'lefthit' || status === 'righthit') {
