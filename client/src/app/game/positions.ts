@@ -1,4 +1,4 @@
-import { Facing, ModelPosition, Status } from './Player';
+import { Direction, ModelPosition, Status } from './Player';
 
 export const positions: Record<string, Record<string, ModelPosition>> = {
   none: {

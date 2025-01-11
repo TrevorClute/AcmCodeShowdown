@@ -13,12 +13,12 @@ export class PlayerService {
   user!: Player;
   opp!: Player;
   update(ctx: CanvasRenderingContext2D) {
-    if (this.user.x > this.opp.x) {
-      this.user.facing = 'left';
-      this.opp.facing = 'right';
-    } else if (this.user.x < this.opp.x) {
-      this.user.facing = 'right';
-      this.opp.facing = 'left';
+    if (this.user.getX() > this.opp.getX()) {
+      this.user.setDirection("left")
+      this.opp.setDirection('right')
+    } else if (this.user.getX() < this.opp.getX()) {
+      this.user.setDirection("right")
+      this.opp.setDirection('left');
     }
     this.user.update(ctx);
     this.opp.update(ctx);

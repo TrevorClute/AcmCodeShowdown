@@ -1,12 +1,10 @@
-import { Component, Injectable } from '@angular/core';
 import { TimeService } from './time.service';
 import { canvasWidth, canvasHeight } from './globals';
 import { positions } from './positions';
+import { Directive } from '@angular/core';
 
 export type Degree = number;
-
 export type Coordinate = { x: number; y: number };
-
 export type ModelPosition = {
   rightShoulder: Degree;
   rightElbow: Degree;
@@ -16,9 +14,8 @@ export type ModelPosition = {
   leftElbow: Degree;
   leftHip: Degree;
   leftKnee: Degree;
-};
-
-export type Facing = 'left' | 'right';
+}
+export type Direction = 'left' | 'right';
 export type Status =
   | 'forward'
   | 'backward'
@@ -41,7 +38,6 @@ const hipCoords = {
   x: modelCenter.x,
   y: modelCenter.y + torsoLength * 0.5,
 };
-
 //degrees per second
 let rates = {
   rightHip: 100,
@@ -55,7 +51,25 @@ let rates = {
   leftShoulder: 250,
 };
 
-//the rates in which each limbs transition
+//helper functions -----------
+function toAnimationStatus(status: Status) {
+  if (status === 'lefthit' || status === 'righthit') {
+    return 'hit';
+  }
+  return status;
+}
+
+function findEndPoint(
+  coordinate: Coordinate,
+  angle: Degree,
+  distance: number,
+): Coordinate {
+  const angleRadian = (angle * Math.PI) / 180;
+  const x = coordinate.x + distance * Math.cos(angleRadian);
+  const y = coordinate.y + distance * Math.sin(angleRadian);
+  return { x, y };
+}
+
 function resetRates() {
   rates = {
     rightHip: 100,
@@ -80,6 +94,9 @@ const movement = {
   none: { left: 0, right: 0 },
 };
 
+/**
+ * @description used to model each player
+ */
 export class Player {
   constructor(
     player: number,
@@ -90,41 +107,50 @@ export class Player {
     this.status = 'none';
     if (player === 1) {
       this.x = 0;
-      this.facing = 'right';
+      this.direction = 'right';
       this.color = 'blue';
     } else {
       this.x = canvasWidth - modelWidth;
-      this.facing = 'left';
+      this.direction = 'left';
       this.color = 'red';
     }
     this.model = new OffscreenCanvas(modelWidth, modelHeight);
     this.modelctx = this.model.getContext('2d')!;
-    this.modelDestination = { ...positions[this.status][this.facing] };
-    this.modelPosition = { ...positions[this.status][this.facing] };
+    this.modelDestination = { ...positions[this.status][this.direction] };
+    this.modelPosition = { ...positions[this.status][this.direction] };
     this.locked = false;
     this.animationStatus = 'none';
   }
-  health: number;
-  stamina: number;
-  status: Status; // used to determine what state the character
-  animationStatus: AnimationStatus; //usually reflects status, is used primarily to return the user to the 'none' animation position
-  facing: Facing;
-  locked: boolean; // if true the user cannot change the current status
-  x: number; // the characters x position
-  color: 'red' | 'blue';
-  model: OffscreenCanvas;
-  modelctx: OffscreenCanvasRenderingContext2D;
-  modelDestination: ModelPosition; // the characters animation destination
-  modelPosition: ModelPosition;
+  private health: number;
+  private stamina: number;
+  private status: Status; // used to determine what state the character
+  private animationStatus: AnimationStatus; //usually reflects status, is used primarily to return the user to the 'none' animation position
+  private direction: Direction;
+  private locked: boolean; // if true the user cannot change the current status
+  private x: number; // the characters x position
+  private color: 'red' | 'blue';
+  private model: OffscreenCanvas;
+  private modelctx: OffscreenCanvasRenderingContext2D;
+  private modelDestination: ModelPosition; // the characters animation destination
+  private modelPosition: ModelPosition;
 
+  getX(){
+    return this.x
+  }
+  getDirection(){
+    return this.direction
+  }
+  setDirection(direction:Direction){
+    this.direction = direction
+  }
   update(ctx: CanvasRenderingContext2D): void {
     this.x += Math.round(
-      movement[this.status][this.facing] * this.timeService.deltaTime,
+      movement[this.status][this.direction] * this.timeService.deltaTime,
     );
     this.updateModel();
     ctx.drawImage(this.model, this.x, canvasHeight - modelHeight);
   }
-  updateModel() {
+  private updateModel() {
     this.modelctx.clearRect(0, 0, this.model.width, this.model.height);
     this.modelctx.strokeStyle = this.color;
     this.stepModelAnimation();
@@ -197,27 +223,11 @@ export class Player {
     this.drawLine(leftElbowCoords, leftHandCoords);
   }
 
-  /**
-   * @description draws a line from point c1 to c2
-   * */
-  drawLine(c1: Coordinate, c2: Coordinate): void {
-    this.modelctx.lineWidth = 2;
-    this.modelctx.lineCap = 'round';
-    this.modelctx.beginPath();
-    this.modelctx.moveTo(c1.x, c1.y);
-    this.modelctx.lineTo(c2.x, c2.y);
-    this.modelctx.stroke();
-  }
-
-  drawCircle(center: Coordinate): void {
-    this.modelctx.lineWidth = 2;
-    this.modelctx.lineCap = 'round';
-  }
 
   /**
    * @description moves the current model one step closer to the models current destination
    * */
-  stepModelAnimation() {
+  private stepModelAnimation() {
     const rightShoulder = this.stepDegree('rightShoulder');
     const rightHip = this.stepDegree('rightHip');
     const rightElbow = this.stepDegree('rightElbow');
@@ -246,31 +256,31 @@ export class Player {
       //return to none after hit
       resetRates();
       setTimeout(() => {
-        this.#setAnimationStatus('none');
+        this.setAnimationStatus('none');
       }, 40);
       return;
     }
 
     if (this.animationStatus === 'forward' && allAnimationsDone) {
       //handle forward
-      this.#setAnimationStatus('none');
+      this.setAnimationStatus('none');
       return;
     }
 
     if (this.animationStatus === 'backward' && allAnimationsDone) {
       //handle forward
-      this.#setAnimationStatus('none');
+      this.setAnimationStatus('none');
       return;
     }
 
     if (this.animationStatus === 'none' && allAnimationsDone) {
       //handle none
       if (this.status === 'forward') {
-        this.#setAnimationStatus('forward');
+        this.setAnimationStatus('forward');
         return;
       }
       if (this.status === 'backward') {
-        this.#setAnimationStatus('backward');
+        this.setAnimationStatus('backward');
         return;
       }
       //if animation status is none and status isnt forward or backwards set the current model to a still position
@@ -280,7 +290,7 @@ export class Player {
   }
 
 
-  stepDegree(joint: keyof ModelPosition): boolean {
+  private stepDegree(joint: keyof ModelPosition): boolean {
     const rate = rates[joint] * this.timeService.deltaTime;
 
     if (this.modelPosition[joint] == this.modelDestination[joint]) {
@@ -293,7 +303,6 @@ export class Player {
         return true;
       }
       this.modelPosition[joint] += rate;
-
     } else if (this.modelPosition[joint] > this.modelDestination[joint]) {
       if (this.modelPosition[joint] - rate < this.modelDestination[joint]) {
         this.modelPosition[joint] = this.modelDestination[joint];
@@ -305,15 +314,13 @@ export class Player {
     return false;
   }
 
-  #setAnimationStatus(animationStatus: AnimationStatus) {
+  private setAnimationStatus(animationStatus: AnimationStatus) {
     this.animationStatus = animationStatus;
-    this.modelDestination = { ...positions[animationStatus][this.facing] };
+    this.modelDestination = { ...positions[animationStatus][this.direction] };
   }
 
   setStatus(status: Status): boolean {
-    if (!status) {
-      return false;
-    }
+    if (!status) return false;
     if (this.locked) return false;
     if (this.status == status) return false;
 
@@ -334,27 +341,24 @@ export class Player {
     }
     this.status = status;
     this.animationStatus = toAnimationStatus(status);
-    this.modelDestination = { ...positions[status][this.facing] };
+    this.modelDestination = { ...positions[status][this.direction] };
     return true;
   }
-}
 
-//helper functions -----------
-
-function toAnimationStatus(status: Status) {
-  if (status === 'lefthit' || status === 'righthit') {
-    return 'hit';
+  /**
+   * @description draws a line from point c1 to c2
+   * */
+  private drawLine(c1: Coordinate, c2: Coordinate): void {
+    this.modelctx.lineWidth = 2;
+    this.modelctx.lineCap = 'round';
+    this.modelctx.beginPath();
+    this.modelctx.moveTo(c1.x, c1.y);
+    this.modelctx.lineTo(c2.x, c2.y);
+    this.modelctx.stroke();
   }
-  return status;
-}
 
-function findEndPoint(
-  coordinate: Coordinate,
-  angle: Degree,
-  distance: number,
-): Coordinate {
-  const angleRadian = (angle * Math.PI) / 180;
-  const x = coordinate.x + distance * Math.cos(angleRadian);
-  const y = coordinate.y + distance * Math.sin(angleRadian);
-  return { x, y };
+  private drawCircle(center: Coordinate): void {
+    this.modelctx.lineWidth = 2;
+    this.modelctx.lineCap = 'round';
+  }
 }

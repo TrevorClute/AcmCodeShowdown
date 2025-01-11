@@ -53,8 +53,8 @@ export class GameComponent implements AfterViewInit, OnDestroy, OnInit{
   }
   execute(key: string) {
     const keyMap: Record<string, Status> = {
-      d: this.playerService?.user.facing === 'right' ? 'forward' : 'backward',
-      a: this.playerService?.user.facing === 'left' ? 'forward' : 'backward',
+      d: this.playerService?.user.getDirection() === 'right' ? 'forward' : 'backward',
+      a: this.playerService?.user.getDirection() === 'left' ? 'forward' : 'backward',
       r: 'righthit',
       l: 'lefthit',
       b: 'block',
