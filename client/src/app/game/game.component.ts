@@ -6,15 +6,16 @@ import {
   HostListener,
   OnDestroy,
   OnInit,
+  viewChild,
   ViewChild,
 } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { animationFrames, Subscription } from 'rxjs';
 import { PlayerService } from './player.service';
 import { TimeService } from './time.service';
-import { canvasWidth } from './globals';
-import { Status } from './Player';
+import { canvasWidth } from './constants';
 import { ScannerComponent } from './scanner/scanner.component';
+import { ScannerService } from './scanner/scanner.service';
 
 @Component({
   selector: 'app-game',
@@ -23,67 +24,67 @@ import { ScannerComponent } from './scanner/scanner.component';
   templateUrl: './game.component.html',
   styleUrl: './game.component.css',
 })
-export class GameComponent implements AfterViewInit, OnDestroy, OnInit{
+export class GameComponent implements AfterViewInit, OnDestroy, OnInit {
   constructor(
-    private readonly playerService: PlayerService,
+    readonly playerService: PlayerService,
     readonly timeService: TimeService,
+    readonly scannerService: ScannerService,
+    readonly route: ActivatedRoute,
   ) {
-    //scale to screen
     this.style.transform = `scale(${innerWidth / canvasWidth})`;
+    this.onWindowResize();
   }
   @ViewChild('canvas') canvas!: ElementRef<HTMLCanvasElement>;
+  scanner = viewChild(ScannerComponent);
   ctx!: CanvasRenderingContext2D;
   style: any = { transform: 'scale(1)' };
   sub?: Subscription;
+  scannerWidth = 640;
+  scannerHeight = 480;
+  color: 'Red' | 'Blue' = 'Blue';
+  winner = ""
 
   @HostListener('window:resize', ['$event'])
-  onWindowResize(event: Event) {
-    this.style.transform = `scale(${innerWidth / canvasWidth})`;
+  async onWindowResize() {
+    const ratio = innerWidth / canvasWidth;
+    this.style.transform = `scale(${ratio})`;
+    this.scannerWidth = innerWidth;
+    this.scannerHeight = innerWidth * 0.75;
+    if (this.scannerHeight > innerHeight) {
+      this.scannerHeight = innerHeight;
+      this.scannerWidth = innerHeight * 1.33333;
+    }
   }
-
-  //test ---
-  keys: [string] = ['n'];
-  @HostListener('window:keydown', ['$event'])
-  onKeydown(event: KeyboardEvent) {
-    this.execute(event.key);
-  }
-  @HostListener('window:keyup', ['$event'])
-  onKeyup(event: KeyboardEvent) {
-    this.execute('n');
-  }
-  execute(key: string) {
-    const keyMap: Record<string, Status> = {
-      d: this.playerService?.user.getDirection() === 'right' ? 'forward' : 'backward',
-      a: this.playerService?.user.getDirection() === 'left' ? 'forward' : 'backward',
-      r: 'righthit',
-      l: 'lefthit',
-      b: 'block',
-      n: 'none',
-    };
-    this.playerService.setOppStatus(keyMap[key]);
-  }
-  //---
 
   ngAfterViewInit(): void {
     this.ctx = this.canvas.nativeElement.getContext('2d')!;
+    this.timeService.reset()
+    this.playerService.reset()
   }
 
   ngOnDestroy(): void {
     this.sub?.unsubscribe();
   }
 
-  ngOnInit(): void {
+  loop() {
+    this.ctx.clearRect(0, 0, this.canvas.nativeElement.width, this.canvas.nativeElement.height);
+    this.playerService[`set${this.color}Status`](this.scanner()?.status || 'none');
+    this.playerService.update(this.ctx);
+    if(this.timeService.phase === 'gameover' && !this.winner){
+      this.winner = this.playerService.winner
+    }
+  }
+
+  start() {
     this.sub = animationFrames().subscribe(({ timestamp }) => {
       this.timeService.injectDeltaTime(timestamp, () => {
-        //main game loop
-        this.ctx.clearRect(
-          0,
-          0,
-          this.canvas.nativeElement.width,
-          this.canvas.nativeElement.height,
-        );
-        this.playerService.update(this.ctx);
+        this.loop();
       });
     });
+  }
+
+  ngOnInit(): void {
+    this.color = (this.route.snapshot.queryParamMap.get('color') as 'Red' | 'Blue' | null) || 'Blue';
+    this.start();
   }
 }

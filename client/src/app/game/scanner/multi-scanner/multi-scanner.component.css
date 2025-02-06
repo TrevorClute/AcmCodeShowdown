@@ -7,6 +7,7 @@ canvas {
 }
 
 .container {
+  position:relative;
   overflow: visible;
   position: relative;
   display: flex;
@@ -24,5 +25,4 @@ canvas {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  text-align:center;
 }

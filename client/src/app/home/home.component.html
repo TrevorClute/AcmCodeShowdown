@@ -1,3 +1,29 @@
 <main>
-  <login></login>
+  <div class="container">
+    <h1>STICK FIGHT</h1>
+    <div class="game-selector">
+      <a class="game-container" [routerLink]="'/game'">
+        <div class="text">
+          <h1>PLAY ONLINE</h1>
+          <div>
+            play against others online
+          </div>
+        </div>
+        <div class="img-container">
+          <img src="../../assets/onlineplay.png" />
+        </div>
+      </a>
+      <a class="game-container" [routerLink]="'/local-game'">
+        <div class="text">
+          <h1>PLAY LOCAL</h1>
+          <div>
+            play locally with a friend
+          </div>
+        </div>
+        <div class="img-container">
+          <img src="../../assets/localplay.png" />
+        </div>
+      </a>
+    </div>
+  </div>
 </main>

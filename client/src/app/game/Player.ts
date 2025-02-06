@@ -1,8 +1,16 @@
 import { TimeService } from './time.service';
-import { canvasWidth, canvasHeight } from './globals';
+import {
+  canvasWidth,
+  canvasHeight,
+  modelWidth,
+  modelHeight,
+  modelHipCoords,
+  modelTorsoLength,
+  modelLimbLength,
+} from './constants';
 import { positions } from './positions';
-import { Directive } from '@angular/core';
-
+import { calculateTimeToAnimate, drawLine, findEndPoint } from './helpers';
+import { forwardRef, ɵɵpureFunction0 } from '@angular/core';
 export type Degree = number;
 export type Coordinate = { x: number; y: number };
 export type ModelPosition = {
@@ -14,83 +22,46 @@ export type ModelPosition = {
   leftElbow: Degree;
   leftHip: Degree;
   leftKnee: Degree;
-}
+  waist: Degree;
+};
+export type Status = keyof typeof positions;
 export type Direction = 'left' | 'right';
-export type Status =
-  | 'forward'
-  | 'backward'
-  | 'righthit'
-  | 'lefthit'
-  | 'block'
-  | 'none';
-export type AnimationStatus = 'forward' | 'backward' | 'hit' | 'block' | 'none';
 
-const modelWidth = 120;
-const modelHeight = 170;
-const modelCenter: Coordinate = { x: modelWidth / 2, y: modelHeight / 2 };
-const limbLength = 30;
-const torsoLength = 40;
-const shoulderCoords = {
-  x: modelCenter.x,
-  y: modelCenter.y - torsoLength * 0.2,
-};
-const hipCoords = {
-  x: modelCenter.x,
-  y: modelCenter.y + torsoLength * 0.5,
-};
-//degrees per second
-let rates = {
-  rightHip: 100,
-  rightElbow: 250,
-  rightKnee: 100,
-  rightShoulder: 250,
+/**
+ * @description the rate at which the character should move given their status (pixels per second)
+ */
 
-  leftHip: 100,
-  leftElbow: 250,
-  leftKnee: 100,
-  leftShoulder: 250,
-};
-
-//helper functions -----------
-function toAnimationStatus(status: Status) {
-  if (status === 'lefthit' || status === 'righthit') {
-    return 'hit';
-  }
-  return status;
+enum Rates {
+  /**
+   * @description 50 pixels per second
+   */
+  ExtraSlow = 50,
+  /**
+   * @description 100 pixels per second
+   */
+  Slow = 100,
+  /**
+   * @description 200 pixles per second
+   */
+  Medium = 200,
+  /**
+   * @description 300 pixles per second
+   */
+  Fast = 300,
+  /**
+   * @description 500 pixels per second
+   */
+  ExtraFast = 500,
 }
 
-function findEndPoint(
-  coordinate: Coordinate,
-  angle: Degree,
-  distance: number,
-): Coordinate {
-  const angleRadian = (angle * Math.PI) / 180;
-  const x = coordinate.x + distance * Math.cos(angleRadian);
-  const y = coordinate.y + distance * Math.sin(angleRadian);
-  return { x, y };
-}
-
-function resetRates() {
-  rates = {
-    rightHip: 100,
-    rightElbow: 250,
-    rightKnee: 100,
-    rightShoulder: 250,
-
-    leftHip: 100,
-    leftElbow: 250,
-    leftKnee: 100,
-    leftShoulder: 250,
-  };
-}
-
-//the rate at which the character should move given their status
 const movement = {
-  forward: { left: -100, right: 100 },
-  backward: { left: 50, right: -50 },
+  forward: { left: -Rates.Slow, right: Rates.Slow },
+  backward: { left: Rates.ExtraSlow, right: -Rates.ExtraSlow },
   righthit: { left: 0, right: 0 },
   lefthit: { left: 0, right: 0 },
   block: { left: 0, right: 0 },
+  isHit: { left: 0, right: 0 },
+  dead: { left: 0, right: 0 },
   none: { left: 0, right: 0 },
 };
 
@@ -109,9 +80,11 @@ export class Player {
       this.x = 0;
       this.direction = 'right';
       this.color = 'blue';
+      this.trueColor = 'blue';
     } else {
       this.x = canvasWidth - modelWidth;
       this.direction = 'left';
+      this.trueColor = 'red';
       this.color = 'red';
     }
     this.model = new OffscreenCanvas(modelWidth, modelHeight);
@@ -120,113 +93,269 @@ export class Player {
     this.modelPosition = { ...positions[this.status][this.direction] };
     this.locked = false;
     this.animationStatus = 'none';
+    this.modelHandXCoordinates = { left: 0, right: 0 };
+    this.forwardLocked = false;
+    this.backwardLocked = false;
   }
   private health: number;
   private stamina: number;
   private status: Status; // used to determine what state the character
-  private animationStatus: AnimationStatus; //usually reflects status, is used primarily to return the user to the 'none' animation position
+  private animationStatus: Status; //usually reflects status, is used primarily to return the user to the 'none' animation position
   private direction: Direction;
   private locked: boolean; // if true the user cannot change the current status
+  private forwardLocked: boolean; // if true the user cannot change the current status
+  private backwardLocked: boolean; // if true the user cannot change the current status
   private x: number; // the characters x position
-  private color: 'red' | 'blue';
+  private color: string;
+  private trueColor: 'red' | 'blue';
   private model: OffscreenCanvas;
   private modelctx: OffscreenCanvasRenderingContext2D;
   private modelDestination: ModelPosition; // the characters animation destination
   private modelPosition: ModelPosition;
+  private modelHandXCoordinates: { left: number; right: number }; // used for hit detection
 
-  getX(){
-    return this.x
+  private modelRates = {
+    rightHip: Rates.Slow,
+    rightElbow: Rates.Fast,
+    rightKnee: Rates.Slow,
+    rightShoulder: Rates.Fast,
+    leftHip: Rates.Slow,
+    leftElbow: Rates.Fast,
+    leftKnee: Rates.Slow,
+    leftShoulder: Rates.Fast,
+    waist: Rates.Slow,
+    reset() {
+      this.rightHip = Rates.Slow;
+      this.rightElbow = Rates.Fast;
+      this.rightKnee = Rates.Slow;
+      this.rightShoulder = Rates.Fast;
+      this.leftHip = Rates.Slow;
+      this.leftElbow = Rates.Fast;
+      this.leftKnee = Rates.Slow;
+      this.leftShoulder = Rates.Fast;
+      this.waist = Rates.Slow;
+    },
+  };
+
+  getModelHandXCoordinates(): { left: number; right: number } {
+    return this.modelHandXCoordinates;
   }
-  getDirection(){
-    return this.direction
+
+  getModelPosition(): ModelPosition {
+    return { ...this.modelPosition };
   }
-  setDirection(direction:Direction){
-    this.direction = direction
+  getStamina(): number {
+    return this.stamina;
   }
-  update(ctx: CanvasRenderingContext2D): void {
-    this.x += Math.round(
-      movement[this.status][this.direction] * this.timeService.deltaTime,
+  decrementStamina(value: number) {
+    const toBeStamina = this.stamina - value;
+    if (toBeStamina < 0) {
+      this.stamina = 0;
+      return;
+    }
+    this.stamina = toBeStamina;
+  }
+  getHealth(): number {
+    return this.health;
+  }
+  getX(): number {
+    return this.x;
+  }
+  setX(x: number) {
+    this.x = x;
+  }
+  getDirection(): Direction {
+    return this.direction;
+  }
+  setDirection(direction: Direction): void {
+    this.direction = direction;
+  }
+
+  getStatus() {
+    return this.status;
+  }
+  setStatus(status: Status): boolean {
+    if (!status) return false;
+    if (this.locked) return false;
+    if (this.status === status) return false;
+    if (this.status === 'dead') return false;
+    //if(this.stamina < 0){
+    //  this.setStatus('recovery')
+    //  this.setAnimationStatus('recovery')
+    //  return false
+    //}
+    this.status = status;
+    this.setAnimationStatus(status);
+
+    if (status === 'block') {
+      this.modelRates.leftShoulder = Rates.ExtraFast;
+      this.modelRates.rightShoulder = Rates.ExtraFast;
+    }
+    if (status === 'lefthit') {
+      this.modelRates.leftShoulder = Rates.ExtraFast;
+      this.modelRates.leftElbow = Rates.ExtraFast;
+      this.decrementStamina(5);
+      this.lock();
+      setTimeout(() => {
+        this.modelRates.reset();
+        this.setAnimationStatus('none');
+        setTimeout(() => {
+          this.unlock();
+          this.setStatus('none');
+        }, 300);
+      }, 200);
+    }
+    if (status === 'righthit') {
+      this.modelRates.rightShoulder = Rates.ExtraFast;
+      this.modelRates.rightElbow = Rates.ExtraFast;
+      this.decrementStamina(5);
+      this.lock();
+      setTimeout(() => {
+        this.modelRates.reset();
+        this.setAnimationStatus('none');
+        setTimeout(() => {
+          this.unlock();
+          this.setStatus('none');
+        }, 300);
+      }, 200);
+    }
+    return true;
+  }
+
+  lock() {
+    this.locked = true;
+  }
+  unlock() {
+    this.locked = false;
+  }
+  forwardLock() {
+    this.forwardLocked = true;
+  }
+  forwardUnlock() {
+    this.forwardLocked = false;
+  }
+
+  backwardLock() {
+    this.backwardLocked = true;
+  }
+  backwardUnlock() {
+    this.backwardLocked = false;
+  }
+  hitConnected() {
+    this.status = 'none';
+    this.setAnimationStatus('none');
+  }
+  gotHit(otherStamina: number) {
+    const staminaMultiplier = (100 - this.stamina + otherStamina) / 2;
+    const blockMultipler = this.status === 'block' ? 110 : 0;
+    const damageToTake = 100 + staminaMultiplier - blockMultipler;
+    this.color = 'purple';
+    setTimeout(() => {
+      this.color = this.trueColor;
+    }, 100);
+    this.health -= damageToTake > 0 ? damageToTake : 0;
+    if (this.status === 'block') {
+      return;
+    }
+    if (!this.backwardLocked) {
+      this.x += this.direction === 'left' ? 10 : -10;
+    }
+    if (this.health < 0) {
+      this.health = 0;
+      this.status = 'dead';
+      this.setAnimationStatus('dead');
+      return;
+    }
+    this.unlock();
+    this.modelRates.reset();
+    this.setStatus('isHit');
+    this.lock();
+    setTimeout(
+      () => {
+        this.modelRates.waist = Rates.ExtraSlow;
+        this.setAnimationStatus('none');
+        setTimeout(
+          () => {
+            this.unlock();
+            this.setStatus('none');
+            this.modelRates.reset();
+          },
+          calculateTimeToAnimate(this.modelPosition.waist, this.modelDestination.waist, this.modelRates.waist),
+        );
+      },
+      calculateTimeToAnimate(this.modelPosition.waist, this.modelDestination.waist, this.modelRates.waist),
     );
-    this.updateModel();
-    ctx.drawImage(this.model, this.x, canvasHeight - modelHeight);
   }
-  private updateModel() {
+
+  update(ctx: CanvasRenderingContext2D): void {
     this.modelctx.clearRect(0, 0, this.model.width, this.model.height);
     this.modelctx.strokeStyle = this.color;
-    this.stepModelAnimation();
+    this.updateModel();
+    ctx.drawImage(this.model, this.x, canvasHeight - modelHeight);
 
-    //draw head
-    //draw torso
-    this.drawLine(hipCoords, {
-      x: hipCoords.x,
-      y: hipCoords.y - torsoLength,
-    });
-
-    //draw upperLeg
-    const rightKneeCoords = findEndPoint(
-      hipCoords,
-      this.modelPosition.rightHip,
-      limbLength,
-    );
-    this.drawLine(hipCoords, rightKneeCoords);
-
-    const leftKneeCoords = findEndPoint(
-      hipCoords,
-      this.modelPosition.leftHip,
-      limbLength,
-    );
-    this.drawLine(hipCoords, leftKneeCoords);
-
-    //draw lowerLeg
-    const rightFootCoords = findEndPoint(
-      rightKneeCoords,
-      this.modelPosition.rightKnee,
-      limbLength,
-    );
-    this.drawLine(rightKneeCoords, rightFootCoords);
-
-    const leftFootCoords = findEndPoint(
-      leftKneeCoords,
-      this.modelPosition.leftKnee,
-      limbLength,
-    );
-    this.drawLine(leftKneeCoords, leftFootCoords);
-
-    //draw upperArm
-    const rightElbowCoords = findEndPoint(
-      shoulderCoords,
-      this.modelPosition.rightShoulder,
-      limbLength,
-    );
-    this.drawLine(shoulderCoords, rightElbowCoords);
-
-    const leftElbowCoords = findEndPoint(
-      shoulderCoords,
-      this.modelPosition.leftShoulder,
-      limbLength,
-    );
-    this.drawLine(shoulderCoords, leftElbowCoords);
-
-    //draw lowerArm
-    const rightHandCoords = findEndPoint(
-      rightElbowCoords,
-      this.modelPosition.rightElbow,
-      limbLength,
-    );
-    this.drawLine(rightElbowCoords, rightHandCoords);
-
-    const leftHandCoords = findEndPoint(
-      leftElbowCoords,
-      this.modelPosition.leftElbow,
-      limbLength,
-    );
-    this.drawLine(leftElbowCoords, leftHandCoords);
+    if (this.status === 'none' && this.stamina < 100) {
+      this.stamina += 20 * this.timeService.deltaTime;
+    }
+    if (this.status === 'block') {
+      this.decrementStamina(4 * this.timeService.deltaTime);
+    }
+    if (this.locked) {
+      return;
+    }
+    if (this.forwardLocked) {
+      if (this.status === 'forward') {
+        return;
+      }
+    }
+    if (this.backwardLocked) {
+      if (this.status === 'backward') {
+        return;
+      }
+    }
+    this.x += Math.round(movement[this.status][this.direction] * this.timeService.deltaTime);
   }
 
+  private setAnimationStatus(status: Status) {
+    this.animationStatus = status;
+    this.modelDestination = { ...positions[status][this.direction] };
+  }
+
+  private updateModel() {
+    this.stepModelAnimation();
+    //draw head
+
+    //draw torso
+    const shoulderCoords = this.drawLimb(modelHipCoords, this.modelPosition.waist, modelTorsoLength);
+
+    //draw upperLeg
+    const rightKneeCoords = this.drawLimb(modelHipCoords, this.modelPosition.rightHip, modelLimbLength);
+
+    const leftKneeCoords = this.drawLimb(modelHipCoords, this.modelPosition.leftHip, modelLimbLength);
+
+    const rightFootCoords = this.drawLimb(rightKneeCoords, this.modelPosition.rightKnee, modelLimbLength);
+
+    const leftFootCoords = this.drawLimb(leftKneeCoords, this.modelPosition.leftKnee, modelLimbLength);
+
+    const rightElbowCoords = this.drawLimb(shoulderCoords, this.modelPosition.rightShoulder, modelLimbLength);
+
+    const leftElbowCoords = this.drawLimb(shoulderCoords, this.modelPosition.leftShoulder, modelLimbLength);
+
+    const rightHandCoords = this.drawLimb(rightElbowCoords, this.modelPosition.rightElbow, modelLimbLength);
+
+    const leftHandCoords = this.drawLimb(leftElbowCoords, this.modelPosition.leftElbow, modelLimbLength);
+    this.modelHandXCoordinates.left = leftHandCoords.x;
+    this.modelHandXCoordinates.right = rightHandCoords.x;
+  }
+
+  private drawLimb(c1: Coordinate, angle: Degree, length: number) {
+    const endOfLimb = findEndPoint(c1, angle, length);
+    drawLine(this.modelctx, c1, endOfLimb);
+    return endOfLimb;
+  }
 
   /**
    * @description moves the current model one step closer to the models current destination
-   * */
+   */
   private stepModelAnimation() {
     const rightShoulder = this.stepDegree('rightShoulder');
     const rightHip = this.stepDegree('rightHip');
@@ -236,31 +365,11 @@ export class Player {
     const leftHip = this.stepDegree('leftHip');
     const leftElbow = this.stepDegree('leftElbow');
     const leftKnee = this.stepDegree('leftKnee');
+    const waist = this.stepDegree('waist');
     const allAnimationsDone =
-      rightShoulder &&
-      rightHip &&
-      rightElbow &&
-      rightKnee &&
-      leftShoulder &&
-      leftHip &&
-      leftElbow &&
-      leftKnee;
-    if (this.status === 'block' && allAnimationsDone) {
-      //return to none after hit
-      resetRates();
-      this.locked = false;
-      return;
-    }
+      rightShoulder && rightHip && rightElbow && rightKnee && leftShoulder && leftHip && leftElbow && leftKnee && waist;
 
-    if (this.animationStatus === 'hit' && allAnimationsDone) {
-      //return to none after hit
-      resetRates();
-      setTimeout(() => {
-        this.setAnimationStatus('none');
-      }, 40);
-      return;
-    }
-
+    // all for walking animation 👍
     if (this.animationStatus === 'forward' && allAnimationsDone) {
       //handle forward
       this.setAnimationStatus('none');
@@ -283,20 +392,18 @@ export class Player {
         this.setAnimationStatus('backward');
         return;
       }
-      //if animation status is none and status isnt forward or backwards set the current model to a still position
-      this.status = 'none';
-      this.locked = false;
     }
   }
 
-
   private stepDegree(joint: keyof ModelPosition): boolean {
-    const rate = rates[joint] * this.timeService.deltaTime;
+    const rate = this.modelRates[joint] * this.timeService.deltaTime;
 
     if (this.modelPosition[joint] == this.modelDestination[joint]) {
       return true;
     }
-
+    //if (joint == 'waist') {
+    //  console.log(rate);
+    //}
     if (this.modelPosition[joint] < this.modelDestination[joint]) {
       if (this.modelPosition[joint] + rate > this.modelDestination[joint]) {
         this.modelPosition[joint] = this.modelDestination[joint];
@@ -312,53 +419,5 @@ export class Player {
       this.modelPosition[joint] -= rate;
     }
     return false;
-  }
-
-  private setAnimationStatus(animationStatus: AnimationStatus) {
-    this.animationStatus = animationStatus;
-    this.modelDestination = { ...positions[animationStatus][this.direction] };
-  }
-
-  setStatus(status: Status): boolean {
-    if (!status) return false;
-    if (this.locked) return false;
-    if (this.status == status) return false;
-
-    if (status === 'block') {
-      rates.leftShoulder = 500;
-      rates.rightShoulder = 500;
-      this.locked = true;
-    }
-    if (status === 'lefthit') {
-      rates.leftShoulder = 500;
-      rates.leftElbow = 500;
-      this.locked = true;
-    }
-    if (status === 'righthit') {
-      rates.rightShoulder = 500;
-      rates.rightElbow = 500;
-      this.locked = true;
-    }
-    this.status = status;
-    this.animationStatus = toAnimationStatus(status);
-    this.modelDestination = { ...positions[status][this.direction] };
-    return true;
-  }
-
-  /**
-   * @description draws a line from point c1 to c2
-   * */
-  private drawLine(c1: Coordinate, c2: Coordinate): void {
-    this.modelctx.lineWidth = 2;
-    this.modelctx.lineCap = 'round';
-    this.modelctx.beginPath();
-    this.modelctx.moveTo(c1.x, c1.y);
-    this.modelctx.lineTo(c2.x, c2.y);
-    this.modelctx.stroke();
-  }
-
-  private drawCircle(center: Coordinate): void {
-    this.modelctx.lineWidth = 2;
-    this.modelctx.lineCap = 'round';
   }
 }
