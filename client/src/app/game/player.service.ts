@@ -1,13 +1,9 @@
 import { Injectable } from '@angular/core';
 import { Player, Status } from './Player';
 import { TimeService } from './time.service';
-import { findEndPoint, isHit } from './helpers';
+import { isHit } from './helpers';
 import { canvasWidth, modelCenter, modelWidth } from './constants';
 
-const directionConstant: { [key: string]: 1 | -1 } = {
-  left: -1,
-  right: 1,
-};
 @Injectable({
   providedIn: 'root',
 })
@@ -18,28 +14,52 @@ export class PlayerService {
   }
   blue: Player;
   red: Player;
-  winner : 'red' | 'blue' | 'tie' = 'tie'
-  isGameOver = false
+  winner: 'red' | 'blue' | 'tie' = 'tie';
+  isGameOver = false;
 
-  gameOver(){
-    this.timeService.phase = 'gameover'
+  gameOver() {
+    this.timeService.phase = 'gameover';
     this.isGameOver = true;
-    if(this.getBlueHealth() > this.getRedHealth()){
-      this.winner = 'blue'
-    }
-    else if(this.getRedHealth() > this.getBlueHealth()){
-      this.winner = 'red'
-    }
-    else {
+    if (this.getBlueHealth() > this.getRedHealth()) {
+      this.winner = 'blue';
+    } else if (this.getRedHealth() > this.getBlueHealth()) {
+      this.winner = 'red';
+    } else {
       this.winner = 'tie';
     }
   }
 
+  setBlueFace(face: OffscreenCanvas) {
+    this.blue.setFace(face);
+  }
+  setRedFace(face: OffscreenCanvas) {
+    this.red.setFace(face);
+  }
+
+  isRedValidNewStatus(status: Status) {
+    return this.red.isValidNewStatus(status);
+  }
+  isBlueValidNewStatus(status: Status) {
+    return this.blue.isValidNewStatus(status);
+  }
+
   setBlueStatus(status: Status) {
-    this.blue.setStatus(status);
+    if (this.timeService.phase === 'game') {
+      return this.blue.setStatus(status);
+    }
+    return false;
   }
   setRedStatus(status: Status) {
-    this.red.setStatus(status);
+    if (this.timeService.phase === 'game') {
+      return this.red.setStatus(status);
+    }
+    return false;
+  }
+  getBlueStatus() {
+    return this.blue.getStatus();
+  }
+  getRedStatus() {
+    return this.red.getStatus();
   }
   getBlueHealth() {
     return Math.round(this.blue.getHealth());
@@ -54,9 +74,9 @@ export class PlayerService {
     return Math.round(this.red.getStamina());
   }
 
-  reset(){
-    this.blue = new Player(1,this.timeService)
-    this.red = new Player(2,this.timeService)
+  reset() {
+    this.blue = new Player(1, this.timeService);
+    this.red = new Player(2, this.timeService);
     this.isGameOver = false;
   }
 
@@ -72,7 +92,7 @@ export class PlayerService {
       this.red.forwardUnlock();
     }
 
-    if (this.blue.getX() + modelWidth * 0.4  <= 0) {
+    if (this.blue.getX() + modelWidth * 0.4 <= 0) {
       this.blue.backwardLock();
     } else {
       this.blue.backwardUnlock();
@@ -82,6 +102,7 @@ export class PlayerService {
     } else {
       this.red.backwardUnlock();
     }
+    if (this.timeService.phase === 'gameover') return;
     this.handleStatus[this.blue.getStatus()]('blue', 'red');
     this.handleStatus[this.red.getStatus()]('red', 'blue');
   }
@@ -93,7 +114,7 @@ export class PlayerService {
     lefthit: (player: 'blue' | 'red', other: 'blue' | 'red') => {
       const leftHandX = this[player].getX() + this[player].getModelHandXCoordinates().left;
       const otherCenterX = this[other].getX() + modelCenter.x;
-      if (isHit(directionConstant[this[player].getDirection()], otherCenterX, leftHandX)) {
+      if (isHit(otherCenterX, leftHandX)) {
         this[player].hitConnected();
         this[other].gotHit(this[player].getStamina());
       }
@@ -101,7 +122,7 @@ export class PlayerService {
     righthit: (player: 'blue' | 'red', other: 'blue' | 'red') => {
       const rightHandX = this[player].getX() + this[player].getModelHandXCoordinates().right;
       const oppCenterX = this[other].getX() + modelCenter.x;
-      if (isHit(directionConstant[this[player].getDirection()], oppCenterX, rightHandX)) {
+      if (isHit(oppCenterX, rightHandX)) {
         this[player].hitConnected();
         this[other].gotHit(this[player].getStamina());
       }
@@ -111,8 +132,8 @@ export class PlayerService {
     backward: (player: 'blue' | 'red', other: 'blue' | 'red') => {},
     isHit: (player: 'blue' | 'red', other: 'blue' | 'red') => {},
     dead: (player: 'blue' | 'red', other: 'blue' | 'red') => {
-      this.winner = other
-      this.gameOver()
+      this.winner = other;
+      this.gameOver();
     },
   };
 }

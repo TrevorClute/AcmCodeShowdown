@@ -18,6 +18,7 @@ import { Status } from '../Player';
 import { Keypoint, Pose } from '@tensorflow-models/pose-detection';
 import { CommonModule } from '@angular/common';
 import { PlayerService } from '../player.service';
+import { SocketService } from '../../socket.service';
 
 export const poseMap = {
   nose: 0,
@@ -57,7 +58,7 @@ export class ScannerComponent implements OnInit, AfterViewInit, OnDestroy {
   offCtx?: OffscreenCanvasRenderingContext2D;
   videoCtx!: CanvasRenderingContext2D;
   nonePose?: Pose;
-  face?: OffscreenCanvas;
+  faceCanvas?: OffscreenCanvas;
   faceCtx?: OffscreenCanvasRenderingContext2D;
   status: Status = 'none';
   message: { body: string; style: any } = { body: '', style: {} };
@@ -66,12 +67,16 @@ export class ScannerComponent implements OnInit, AfterViewInit, OnDestroy {
     readonly scannerService: ScannerService,
     readonly timeService: TimeService,
     readonly playerService: PlayerService,
-  ) {
-    this.face = new OffscreenCanvas(50, 50);
-    this.faceCtx = this.face.getContext('2d')!;
-  }
+    readonly socketService:SocketService
+  ) { }
   ngOnDestroy(): void {
-    this.sub?.unsubscribe()
+    this.sub?.unsubscribe();
+    this.nonePose = undefined;
+  }
+
+  reset() {
+    this.nonePose = undefined;
+    this.status = 'none';
   }
 
   async play() {
@@ -115,7 +120,9 @@ export class ScannerComponent implements OnInit, AfterViewInit, OnDestroy {
       drawLine(ctx, leftShoulder, leftHip, 2);
       drawLine(ctx, rightShoulder, rightHip, 2);
       drawLine(ctx, leftHip, rightHip, 2);
-      for (let i = 0; i < pose.keypoints.length; i++) {
+      //start at 5 to ignore face points
+      //stop at 13 to ignore leg points
+      for (let i = 5; i < 13; i++) {
         const point = pose.keypoints[i];
         if (point.score! > 0.3) {
           ctx.roundRect(point.x - 4, point.y - 4, 8, 8, 10);
@@ -150,12 +157,12 @@ export class ScannerComponent implements OnInit, AfterViewInit, OnDestroy {
   determineStatus(pose: Pose, nonePose: Pose): Status {
     if (!this.nonePose || (pose.score || 0) < 0.5) return this.status;
 
-    const noneLeftShoulder = nonePose.keypoints[poseMap['left_shoulder']];
-    const noneRightShoulder = nonePose.keypoints[poseMap['right_shoulder']];
-    const leftShoulder = pose.keypoints[poseMap['left_shoulder']];
-    const rightShoulder = pose.keypoints[poseMap['right_shoulder']];
-    const leftWrist = pose.keypoints[poseMap['left_wrist']];
-    const rightWrist = pose.keypoints[poseMap['right_wrist']];
+    const noneLeftShoulder = nonePose.keypoints[poseMap.left_shoulder];
+    const noneRightShoulder = nonePose.keypoints[poseMap.right_shoulder];
+    const leftShoulder = pose.keypoints[poseMap.left_shoulder];
+    const rightShoulder = pose.keypoints[poseMap.right_shoulder];
+    const leftWrist = pose.keypoints[poseMap.left_wrist];
+    const rightWrist = pose.keypoints[poseMap.right_wrist];
 
     const noneShoulderDistance = noneLeftShoulder.x - noneRightShoulder.x;
     const shoulderDistance = leftShoulder.x - rightShoulder.x;
@@ -180,7 +187,48 @@ export class ScannerComponent implements OnInit, AfterViewInit, OnDestroy {
 
   async setNonePose() {
     if (this.nonePose) return;
-    this.nonePose = (await this.scannerService.analyzeImage(this.video.nativeElement))![0];
+
+    const pose = (await this.scannerService.analyzeImage(this.video.nativeElement))![0];
+    this.nonePose = pose;
+  }
+
+  async setFace() {
+    if (this.faceCanvas) return;
+
+    const pose = (await this.scannerService.analyzeImage(this.video.nativeElement))![0];
+    this.faceCanvas = new OffscreenCanvas(50, 60);
+    this.faceCtx = this.faceCanvas.getContext('2d')!;
+    this.faceCtx.save();
+    this.faceCtx.beginPath();
+    const centerX = this.faceCanvas.width / 2;
+    const centerY = this.faceCanvas.height / 2;
+    const radiusX = this.faceCanvas.width / 2;
+    const radiusY = this.faceCanvas.height / 2;
+    this.faceCtx.ellipse(centerX,centerY,radiusX,radiusY,0,0, Math.PI * 2)
+    this.faceCtx.closePath()
+    this.faceCtx.clip()
+
+    const rightEar = pose.keypoints[poseMap.right_ear];
+    const leftEar = pose.keypoints[poseMap.left_ear];
+    const width = leftEar.x - rightEar.x;
+    this.faceCtx.drawImage(
+      this.offCanvas!,
+      rightEar.x,
+      rightEar.y - width,
+      width,
+      width * 1.5,
+      0,
+      0,
+      this.faceCanvas.width,
+      this.faceCanvas.height,
+    );
+    this.socketService.sendFace(this.faceCanvas)
+    this.faceCtx.restore()
+  }
+
+  async initalScan() {
+    this.setNonePose();
+    this.setFace();
   }
 
   videoReady() {
@@ -211,7 +259,7 @@ export class ScannerComponent implements OnInit, AfterViewInit, OnDestroy {
         } else {
           this.message.body = '';
           this.message.style = {};
-          this.setNonePose();
+          this.initalScan();
           this.update();
         }
       });

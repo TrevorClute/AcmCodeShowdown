@@ -1,13 +1,15 @@
 main {
-  min-height:100%;
+  min-height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
   background-image: url("../../assets/fist.svg");
-  background-size: 10% 10%;
+  background-size: 5% 5%;
+  background-color: #ffffff;
+  background-repeat: round;
   /* Make the background larger than the viewport so the movement is noticeable */
   /* Attach the animation */
-  animation: moveBackground 60s linear infinite;
+  animation: moveBackground 90s linear infinite;
 }
 
 @keyframes moveBackground {
@@ -16,7 +18,7 @@ main {
   }
 
   100% {
-    background-position: 100% 0%;
+    background-position: 100% 100%;
   }
 }
 
@@ -33,11 +35,11 @@ main {
 .game-selector {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 8px;
   border-radius: 1rem;
   width: 100%;
   flex: 1;
-  padding-bottom:10px
+  padding-bottom: 10px;
 }
 
 .game-container {
@@ -47,11 +49,39 @@ main {
   background-color: white;
   display: flex;
   transition: all ease-in 0.1s;
-  background-color: rgba(255,255,255,0.9);
+  background-color: rgba(255, 255, 255, 0.9);
+  animation: glow 3s linear infinite;
+  transition: all 0.1s ease-in;
+}
+
+.game-container-inactive {
+  flex: 1;
+  border-radius: 1rem;
+  padding: 5px;
+  background-color: white;
+  display: flex;
+  transition: all ease-in 0.1s;
+  background-color: rgb(55, 55, 55);
+  opacity: 0.7;
 }
 
 .game-container:hover {
-  box-shadow: blue 0px 0px 5px 1px;
+  background-color: rgba(255, 255, 255, 1);
+  box-shadow: 0px 0px 10px 2px purple;
+}
+
+@keyframes glow {
+  0% {
+    border: 3px solid blue;
+  }
+
+  50% {
+    border: 3px solid red;
+  }
+
+  100% {
+    border: 3px solid blue;
+  }
 }
 
 .text {
@@ -63,7 +93,7 @@ main {
 
 h1 {
   color: red;
-  text-shadow: 0px 0px 3px blue;
+  text-shadow: 0px 1px 4px blue;
 }
 
 img {
@@ -78,4 +108,11 @@ a {
 .img-container {
   flex: 1;
   position: relative;
+}
+
+.learn-to-play {
+  position: absolute;
+  padding:10px;
+  right: 0;
+  top: 0;
 }

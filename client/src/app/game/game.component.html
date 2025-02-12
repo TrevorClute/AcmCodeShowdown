@@ -13,17 +13,20 @@
       @if (timeService.phase == "game") {
       {{ (190 - timeService.timeElapsed).toPrecision(3) + "s" }}
       }
-      @if(timeService.phase == 'gameover'){
-      {{winner}}
+      @if (timeService.phase == "gameover") {
+      <a class="return-home" href="https://10.233.253.76:4200">
+        return home
+      </a>
+      {{ winner }}
       }
     </h1>
     <div class="red">
       <div class="condition-container">
-        <div class="stamina" [ngStyle]="{ 'width.%': playerService.getRedStamina(), 'background-color': 'green' }">
-        </div>
+        <div class="health" [ngStyle]="{ 'width.%': playerService.getRedHealth() / 10 }"></div>
       </div>
       <div class="condition-container">
-        <div class="health" [ngStyle]="{ 'width.%': playerService.getRedHealth() / 10 }"></div>
+        <div class="stamina" [ngStyle]="{ 'width.%': playerService.getRedStamina(), 'background-color': 'green' }">
+        </div>
       </div>
     </div>
   </div>

@@ -10,7 +10,6 @@ import {
 } from './constants';
 import { positions } from './positions';
 import { calculateTimeToAnimate, drawLine, findEndPoint } from './helpers';
-import { forwardRef, ɵɵpureFunction0 } from '@angular/core';
 export type Degree = number;
 export type Coordinate = { x: number; y: number };
 export type ModelPosition = {
@@ -56,7 +55,7 @@ enum Rates {
 
 const movement = {
   forward: { left: -Rates.Slow, right: Rates.Slow },
-  backward: { left: Rates.ExtraSlow, right: -Rates.ExtraSlow },
+  backward: { left: Rates.Slow, right: -Rates.Slow },
   righthit: { left: 0, right: 0 },
   lefthit: { left: 0, right: 0 },
   block: { left: 0, right: 0 },
@@ -113,6 +112,7 @@ export class Player {
   private modelDestination: ModelPosition; // the characters animation destination
   private modelPosition: ModelPosition;
   private modelHandXCoordinates: { left: number; right: number }; // used for hit detection
+  private faceCanvas?: OffscreenCanvas;
 
   private modelRates = {
     rightHip: Rates.Slow,
@@ -170,20 +170,27 @@ export class Player {
   setDirection(direction: Direction): void {
     this.direction = direction;
   }
-
+  setFace(face: OffscreenCanvas) {
+    this.faceCanvas = face;
+  }
   getStatus() {
     return this.status;
+  }
+  isValidNewStatus(status: Status) {
+    if (!status) return false;
+    if (this.locked) return false;
+    if (this.status === status) return false;
+    if (this.status === 'dead') return false;
+    return true;
   }
   setStatus(status: Status): boolean {
     if (!status) return false;
     if (this.locked) return false;
     if (this.status === status) return false;
-    if (this.status === 'dead') return false;
-    //if(this.stamina < 0){
-    //  this.setStatus('recovery')
-    //  this.setAnimationStatus('recovery')
-    //  return false
-    //}
+    if (this.status === 'dead') {
+      this.setAnimationStatus('dead');
+      return false;
+    }
     this.status = status;
     this.setAnimationStatus(status);
 
@@ -194,30 +201,30 @@ export class Player {
     if (status === 'lefthit') {
       this.modelRates.leftShoulder = Rates.ExtraFast;
       this.modelRates.leftElbow = Rates.ExtraFast;
-      this.decrementStamina(5);
+      this.decrementStamina(20);
       this.lock();
       setTimeout(() => {
         this.modelRates.reset();
         this.setAnimationStatus('none');
-        setTimeout(() => {
-          this.unlock();
-          this.setStatus('none');
-        }, 300);
       }, 200);
+      setTimeout(() => {
+        this.unlock();
+        this.setStatus('none');
+      }, 500);
     }
     if (status === 'righthit') {
       this.modelRates.rightShoulder = Rates.ExtraFast;
       this.modelRates.rightElbow = Rates.ExtraFast;
-      this.decrementStamina(5);
+      this.decrementStamina(20);
       this.lock();
       setTimeout(() => {
         this.modelRates.reset();
         this.setAnimationStatus('none');
-        setTimeout(() => {
-          this.unlock();
-          this.setStatus('none');
-        }, 300);
       }, 200);
+      setTimeout(() => {
+        this.unlock();
+        this.setStatus('none');
+      }, 500);
     }
     return true;
   }
@@ -248,7 +255,7 @@ export class Player {
   gotHit(otherStamina: number) {
     const staminaMultiplier = (100 - this.stamina + otherStamina) / 2;
     const blockMultipler = this.status === 'block' ? 110 : 0;
-    const damageToTake = 100 + staminaMultiplier - blockMultipler;
+    const damageToTake = 10 + staminaMultiplier - blockMultipler;
     this.color = 'purple';
     setTimeout(() => {
       this.color = this.trueColor;
@@ -294,7 +301,13 @@ export class Player {
     ctx.drawImage(this.model, this.x, canvasHeight - modelHeight);
 
     if (this.status === 'none' && this.stamina < 100) {
-      this.stamina += 20 * this.timeService.deltaTime;
+      this.stamina += 40 * this.timeService.deltaTime;
+    }
+    if (this.status === 'backward' && this.stamina < 100) {
+      this.stamina += 40 * this.timeService.deltaTime;
+    }
+    if (this.status === 'forward' && this.stamina < 100) {
+      this.stamina += 40 * this.timeService.deltaTime;
     }
     if (this.status === 'block') {
       this.decrementStamina(4 * this.timeService.deltaTime);
@@ -322,10 +335,18 @@ export class Player {
 
   private updateModel() {
     this.stepModelAnimation();
-    //draw head
 
     //draw torso
     const shoulderCoords = this.drawLimb(modelHipCoords, this.modelPosition.waist, modelTorsoLength);
+
+    //draw head
+    if (this.faceCanvas) {
+      this.modelctx.drawImage(
+        this.faceCanvas,
+        shoulderCoords.x - this.faceCanvas.width / 2,
+        shoulderCoords.y - this.faceCanvas.height,
+      );
+    }
 
     //draw upperLeg
     const rightKneeCoords = this.drawLimb(modelHipCoords, this.modelPosition.rightHip, modelLimbLength);
@@ -401,9 +422,6 @@ export class Player {
     if (this.modelPosition[joint] == this.modelDestination[joint]) {
       return true;
     }
-    //if (joint == 'waist') {
-    //  console.log(rate);
-    //}
     if (this.modelPosition[joint] < this.modelDestination[joint]) {
       if (this.modelPosition[joint] + rate > this.modelDestination[joint]) {
         this.modelPosition[joint] = this.modelDestination[joint];

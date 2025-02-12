@@ -1,24 +1,35 @@
 <main>
   <div class="container">
+    <a class="learn-to-play" [routerLink]="'/learn-to-play'">
+      <h1>?</h1>
+    </a>
     <h1>STICK FIGHT</h1>
     <div class="game-selector">
-      <a class="game-container" [routerLink]="'/game'">
+      @if (socketService.isActive) {
+      <a class="game-container" [routerLink]="'/queue'">
         <div class="text">
           <h1>PLAY ONLINE</h1>
-          <div>
-            play against others online
-          </div>
+          <div>play against others online</div>
         </div>
         <div class="img-container">
           <img src="../../assets/onlineplay.png" />
         </div>
       </a>
+      } @else {
+      <a class="game-container-inactive" href="https://10.233.253.76:3000">
+        <div class="text">
+          <h1>PLAY ONLINE</h1>
+          <div>unable to connect to server click here</div>
+        </div>
+        <div class="img-container">
+          <img src="../../assets/onlineplay.png" />
+        </div>
+      </a>
+      }
       <a class="game-container" [routerLink]="'/local-game'">
         <div class="text">
           <h1>PLAY LOCAL</h1>
-          <div>
-            play locally with a friend
-          </div>
+          <div>play locally with a friend</div>
         </div>
         <div class="img-container">
           <img src="../../assets/localplay.png" />

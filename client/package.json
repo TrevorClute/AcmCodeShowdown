@@ -24,6 +24,8 @@
     "@tensorflow/tfjs-converter": "^4.22.0",
     "@tensorflow/tfjs-core": "^4.22.0",
     "rxjs": "~7.8.0",
+    "socket.io": "^4.8.1",
+    "socket.io-client": "^4.8.1",
     "tslib": "^2.3.0",
     "zone.js": "~0.14.10"
   },

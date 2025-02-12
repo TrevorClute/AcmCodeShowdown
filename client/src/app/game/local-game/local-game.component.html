@@ -13,9 +13,6 @@
       @if (timeService.phase == "game") {
       {{ (190 - timeService.timeElapsed).toPrecision(3) + "s" }}
       }
-      @if (timeService.phase == "gameover") {
-      {{ winner }}
-      }
     </h1>
     <div class="red">
       <div class="condition-container">
@@ -29,6 +26,15 @@
   </div>
 
   <multi-scanner #scanner [width]="scannerWidth" [height]="scannerHeight"> </multi-scanner>
+  @if (timeService.phase == "gameover") {
+  <div class="after-game">
+    <h1>
+      {{ winner }}
+    </h1>
+    <h1 (click)="playAgain()" class="play-again">play again ↺</h1>
+    <a [routerLink]="'/'"> return to home </a>
+  </div>
+  }
 
   <div class="container" [ngStyle]="style">
     <canvas #canvas width="500" height="200"></canvas>

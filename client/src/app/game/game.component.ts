@@ -9,13 +9,14 @@ import {
   viewChild,
   ViewChild,
 } from '@angular/core';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { animationFrames, Subscription } from 'rxjs';
 import { PlayerService } from './player.service';
 import { TimeService } from './time.service';
 import { canvasWidth } from './constants';
 import { ScannerComponent } from './scanner/scanner.component';
 import { ScannerService } from './scanner/scanner.service';
+import { SocketService } from '../socket.service';
 
 @Component({
   selector: 'app-game',
@@ -30,6 +31,8 @@ export class GameComponent implements AfterViewInit, OnDestroy, OnInit {
     readonly timeService: TimeService,
     readonly scannerService: ScannerService,
     readonly route: ActivatedRoute,
+    readonly router: Router,
+    readonly socketService: SocketService,
   ) {
     this.style.transform = `scale(${innerWidth / canvasWidth})`;
     this.onWindowResize();
@@ -42,7 +45,7 @@ export class GameComponent implements AfterViewInit, OnDestroy, OnInit {
   scannerWidth = 640;
   scannerHeight = 480;
   color: 'Red' | 'Blue' = 'Blue';
-  winner = ""
+  winner = '';
 
   @HostListener('window:resize', ['$event'])
   async onWindowResize() {
@@ -56,10 +59,14 @@ export class GameComponent implements AfterViewInit, OnDestroy, OnInit {
     }
   }
 
+  returnHome(){
+    this.router.navigateByUrl(`/home?forceRefresh=${Date.now()}`)
+  }
+
   ngAfterViewInit(): void {
     this.ctx = this.canvas.nativeElement.getContext('2d')!;
-    this.timeService.reset()
-    this.playerService.reset()
+    this.timeService.reset();
+    this.playerService.reset();
   }
 
   ngOnDestroy(): void {
@@ -68,10 +75,20 @@ export class GameComponent implements AfterViewInit, OnDestroy, OnInit {
 
   loop() {
     this.ctx.clearRect(0, 0, this.canvas.nativeElement.width, this.canvas.nativeElement.height);
-    this.playerService[`set${this.color}Status`](this.scanner()?.status || 'none');
+    if (this.playerService[`set${this.color}Status`](this.scanner()?.status || 'none')) {
+      this.socketService.sendStatus(this.playerService[`get${this.color}Status`]());
+    }
     this.playerService.update(this.ctx);
-    if(this.timeService.phase === 'gameover' && !this.winner){
-      this.winner = this.playerService.winner
+    if (this.scanner()?.faceCanvas) {
+      this.playerService[`set${this.color}Face`](this.scanner()?.faceCanvas!);
+    }
+    if (this.timeService.phase === 'gameover' && !this.winner) {
+      this.playerService.gameOver();
+      if (this.playerService.winner === 'tie') {
+        this.winner = 'tie';
+      } else {
+        this.winner = `${this.playerService.winner} wins!`;
+      }
     }
   }
 
@@ -85,6 +102,10 @@ export class GameComponent implements AfterViewInit, OnDestroy, OnInit {
 
   ngOnInit(): void {
     this.color = (this.route.snapshot.queryParamMap.get('color') as 'Red' | 'Blue' | null) || 'Blue';
+    this.socketService.onReceiveFace().subscribe((canvas: OffscreenCanvas) => {
+      const color = this.color === 'Red' ? 'Blue' : 'Red';
+      this.playerService[`set${color}Face`](canvas);
+    });
     this.start();
   }
 }

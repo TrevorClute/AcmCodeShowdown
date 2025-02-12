@@ -35,8 +35,9 @@ export function findEndPoint(coordinate: Coordinate, angle: Degree, distance: nu
  * @param x1 the body that is getting hit
  * @param x2 the hand that is hitting
  */
-export function isHit(constant: -1 | 1, x1: number, x2: number): boolean {
-  return constant * (x1 - x2) < 0;
+export function isHit(x1: number, x2: number): boolean {
+  //10 pixel margin of error
+  return Math.abs(x1 - x2) < 10;
 }
 
 /**
