@@ -22,6 +22,26 @@ main {
   }
 }
 
+.loading {
+  position: absolute;
+  font-size: 2em;
+  animation: loadAnimation 0.5s linear infinite;
+}
+
+@keyframes loadAnimation {
+  0% {
+    opacity: 100%;
+  }
+
+  50% {
+    opacity: 50%;
+  }
+
+  100% {
+    opacity: 100%;
+  }
+}
+
 .container {
   display: flex;
   flex-direction: column;
@@ -112,7 +132,7 @@ a {
 
 .learn-to-play {
   position: absolute;
-  padding:10px;
+  padding: 10px;
   right: 0;
   top: 0;
 }

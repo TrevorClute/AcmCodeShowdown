@@ -14,6 +14,7 @@ export class ScannerService {
 
   detector: { single?: poseDetection.PoseDetector; multi?: poseDetection.PoseDetector } = {};
   stream?: MediaStream;
+  loading = true
 
   async init() {
     //pre initializes camera 👍

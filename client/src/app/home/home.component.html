@@ -1,4 +1,7 @@
 <main>
+  @if (scannerService.loading) {
+    <div class="loading">loading...</div>
+  } @else {
   <div class="container">
     <a class="learn-to-play" [routerLink]="'/learn-to-play'">
       <h1>?</h1>
@@ -19,7 +22,7 @@
       <a class="game-container-inactive" href="https://10.233.253.76:3000">
         <div class="text">
           <h1>PLAY ONLINE</h1>
-          <div>coming soooooon :)</div>
+          <div>loading...</div>
         </div>
         <div class="img-container">
           <img src="../../assets/onlineplay.png" />
@@ -37,4 +40,5 @@
       </a>
     </div>
   </div>
+  }
 </main>

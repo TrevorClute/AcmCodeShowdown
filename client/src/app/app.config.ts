@@ -15,8 +15,10 @@ export const appConfig: ApplicationConfig = {
     provideHttpClient(withFetch()),
     {
       provide: APP_INITIALIZER,
-      useFactory: (scannerService: ScannerService) => async () => {
-        await scannerService.init();
+      useFactory: (scannerService: ScannerService) => () => {
+        scannerService.init().then(()=>{
+          scannerService.loading = false
+        });
       },
       deps: [ScannerService],
       multi: true,
