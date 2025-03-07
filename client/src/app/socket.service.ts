@@ -23,7 +23,8 @@ export class SocketService {
     readonly timeService: TimeService,
   ) {
     //this.socket = io('http://10.235.4.191:3000');
-    this.socket = io('https://10.233.253.76:3000', {
+    //this.socket = io('https://10.233.253.76:3000', {
+    this.socket = io('https://stickfight.onrender.com', {
       secure: true,
       rejectUnauthorized: false,
     });
