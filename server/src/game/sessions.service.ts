@@ -9,13 +9,6 @@ export class SessionsService {
   private sessions = new Map<string, GameSession>();
   private activeClients = new Map<string, string>();
 
-  @Interval(50)
-  test() {
-    for (const session of this.sessions.values()) {
-      session.update(Date.now());
-    }
-  }
-
   joinSession(server: Server, clientId: string) {
     if (this.activeClients.has(clientId)) {
       return;

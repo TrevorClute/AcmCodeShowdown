@@ -8,6 +8,6 @@ export class AppController {
 
   @Get()
   test(@MessageBody() body:string){
-    return "ok no go back to https://10.233.253.76:4200"
+    return "ok no go back to https://stick-fight.vercel.app/home"
   }
 } 

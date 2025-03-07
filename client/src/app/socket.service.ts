@@ -8,7 +8,6 @@ import { Observable } from 'rxjs';
 
 type SessionInfo = { sessionId: string; color: string; startTime: number };
 
-const getOther = { red: 'Blue', blue: 'Red' };
 
 @Injectable({
   providedIn: 'root',
