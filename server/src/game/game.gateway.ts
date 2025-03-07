@@ -24,6 +24,8 @@ export class GameGateway {
 
   @SubscribeMessage('status')
   handleStatusChange(@MessageBody() status: Status, @ConnectedSocket() client: Socket): boolean {
+    console.log("--------------------------------------------------------");
+    console.log(this.sessions.sessions);
     if (!this.sessions.getSession(client.id)) return false;
     return this.sessions.getSession(client.id).updateStatus(this.server, client.id, status);
   }
@@ -36,7 +38,7 @@ export class GameGateway {
     if (session.blue.id === client.id) {
       this.server.to(session.red.id).emit('receive-face', buffer);
     } else if (session.red.id === client.id) {
-      this.server.to(session.blue.id).emit('receive-face', buffer);
+      this.server.to(session.blue.id).emit('receive-face', buffer)
     }
   }
 }

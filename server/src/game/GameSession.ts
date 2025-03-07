@@ -110,6 +110,7 @@ export class GameSession {
     this.red = new Player('red');
   }
 
+
   update(time: number) {
     this.red.update(time);
     this.blue.update(time);

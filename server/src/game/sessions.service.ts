@@ -6,8 +6,9 @@ import { Interval } from '@nestjs/schedule';
 
 @Injectable()
 export class SessionsService {
-  private sessions = new Map<string, GameSession>();
+  sessions = new Map<string, GameSession>();
   private activeClients = new Map<string, string>();
+
 
   joinSession(server: Server, clientId: string) {
     if (this.activeClients.has(clientId)) {
@@ -24,6 +25,9 @@ export class SessionsService {
         session.startTime = startTime;
         server.to(session.blue.id).emit('game-start', { sessionId, color: 'Blue', startTime });
         server.to(session.red.id).emit('game-start', { sessionId, color: 'Red', startTime });
+        setTimeout(() => {
+          this.sessions.delete(sessionId);
+        }, 180000);
       }
     }
     //if no sessions open create new session
