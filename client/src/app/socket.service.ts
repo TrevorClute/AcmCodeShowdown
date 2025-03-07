@@ -24,10 +24,7 @@ export class SocketService {
   ) {
     //this.socket = io('http://10.235.4.191:3000');
     //this.socket = io('https://10.233.253.76:3000', {
-    this.socket = io('https://stickfight.onrender.com', {
-      secure: true,
-      rejectUnauthorized: false,
-    });
+    this.socket = io('https://stickfight.onrender.com');
     //this.socket = io('https://localhost:3000');
     this.socket.on('connect', () => {
       this.isActive = true;
