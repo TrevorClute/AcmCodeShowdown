@@ -255,7 +255,7 @@ export class Player {
   gotHit(otherStamina: number) {
     const staminaMultiplier = (100 - this.stamina + otherStamina) / 2;
     const blockMultipler = this.status === 'block' ? 110 : 0;
-    const damageToTake = 10 + staminaMultiplier - blockMultipler;
+    const damageToTake = 75 + staminaMultiplier - blockMultipler;
     this.color = 'purple';
     setTimeout(() => {
       this.color = this.trueColor;
